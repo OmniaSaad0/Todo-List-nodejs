@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  author: Your Name
+  description: Setup VM for Todo App with Docker, Docker Compose, and Kubernetes
+  company: Your Company
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - lunar
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+  galaxy_tags:
+    - docker
+    - kubernetes
+    - todo-app
+    - deployment
+    - automation
+
+dependencies: [] 

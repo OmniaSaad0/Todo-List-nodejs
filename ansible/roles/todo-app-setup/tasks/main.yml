@@ -1,0 +1,178 @@
+---
+# Update package cache
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+
+# Install required packages
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - wget
+      - gnupg
+      - lsb-release
+      - apt-transport-https
+      - ca-certificates
+      - software-properties-common
+      - unzip
+      - git
+      - vim
+      - htop
+      - iptables-persistent
+    state: present
+  become: yes
+
+# Add Docker GPG key
+- name: Download Docker GPG key
+  shell: "curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /tmp/docker.gpg"
+  become: yes
+
+- name: Add Docker GPG key
+  shell: "gpg --dearmor < /tmp/docker.gpg | sudo tee /usr/share/keyrings/docker-archive-keyring.gpg > /dev/null"
+  become: yes
+
+# Add Docker repository
+- name: Add Docker repository
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+  become: yes
+
+# Install Docker
+- name: Install Docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+  become: yes
+
+# Start and enable Docker service
+- name: Start and enable Docker service
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+  become: yes
+
+# Add user to docker group
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  become: yes
+
+# Install Docker Compose (standalone)
+- name: Download Docker Compose
+  shell: "curl -fsSL https://github.com/docker/compose/releases/latest/download/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose"
+  become: yes
+
+# Install kubectl
+- name: Download kubectl
+  shell: "curl -fsSL https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl"
+  become: yes
+
+# Install Minikube
+- name: Download Minikube
+  shell: "curl -fsSL https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 -o /usr/local/bin/minikube && chmod +x /usr/local/bin/minikube"
+  become: yes
+
+# Create application directory
+- name: Create application directory
+  file:
+    path: /opt/todo-app
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  become: yes
+
+# Copy docker-compose.yml file
+- name: Copy docker-compose.yml
+  copy:
+    src: "../docker-compose.yml"
+    dest: /opt/todo-app/docker-compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  become: yes
+
+# Create Docker credentials file
+- name: Create Docker credentials directory
+  file:
+    path: /opt/todo-app/.docker
+    state: directory
+    mode: '0700'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  become: yes
+
+# Create Docker config with credentials
+- name: Create Docker config
+  template:
+    src: docker-config.json.j2
+    dest: /opt/todo-app/.docker/config.json
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+  become: yes
+  when: docker_username is defined and docker_password is defined
+
+# Create auto-update script inside container
+- name: Create auto-update script
+  template:
+    src: auto-update-image.sh.j2
+    dest: /opt/todo-app/auto-update-image.sh
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  become: yes
+
+# Create log file with proper permissions
+- name: Create auto-update log file
+  file:
+    path: /var/log/auto-update.log
+    state: touch
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+  become: yes
+
+# Setup cron job for auto-update
+- name: Setup cron job for auto-update
+  cron:
+    name: "Auto-update Docker image"
+    minute: "*/2"
+    job: "cd /opt/todo-app && ./auto-update-image.sh >> /var/log/auto-update.log 2>&1"
+    user: "{{ ansible_user }}"
+  become: yes
+
+
+# Configure firewall using shell commands
+- name: Allow SSH port
+  shell: "iptables -A INPUT -p tcp --dport 22 -j ACCEPT"
+  become: yes
+
+- name: Allow application port
+  shell: "iptables -A INPUT -p tcp --dport 4000 -j ACCEPT"
+  become: yes
+
+- name: Allow MongoDB port
+  shell: "iptables -A INPUT -p tcp --dport 27017 -j ACCEPT"
+  become: yes
+
+- name: Save iptables rules
+  shell: "iptables-save > /etc/iptables/rules.v4"
+  become: yes
+
+# Start the application
+- name: Start the application
+  shell: "cd /opt/todo-app && docker compose up -d"
+  become: yes
+  become_user: "{{ ansible_user }}" 

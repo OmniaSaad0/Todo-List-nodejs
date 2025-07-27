@@ -1,0 +1,9 @@
+node_modules/
+
+ansible/todo-app.pem
+
+docker-compose.yml
+
+
+.dockerignore
+

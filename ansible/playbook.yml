@@ -1,0 +1,8 @@
+---
+- name: Setup VM for Todo App
+  hosts: all
+  become: yes
+  vars_files:
+    - vars/docker-credentials.yml  # Create this file with your Docker credentials
+  roles:
+    - todo-app-setup 

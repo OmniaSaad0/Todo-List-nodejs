@@ -1,0 +1,10 @@
+---
+all:
+  children:
+    todo_servers:
+      hosts:
+        todo-vm:
+          ansible_host: 3.230.172.118
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: todo-app.pem
+          ansible_python_interpreter: /usr/bin/python3 
