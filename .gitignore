@@ -1,9 +1,11 @@
 node_modules/
 
 ansible/todo-app.pem
+ansible/vars/docker-credentials.yml
 
 docker-compose.yml
 
 
 .dockerignore
 
+.env
